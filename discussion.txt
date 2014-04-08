@@ -20,7 +20,7 @@ The starting location of particles is determined by user-defined seeds. Seeds ca
 
   Relation between seeds, particles, and paths.
 
-As the particle is traveling through voxels, the adjacent voxel from which we sample the next direction is randomly selected.  The selected direction is inversely proportional to the distance from the nearest vertex. This process is shown in Figure 3.2.  Once we know the next vertex, a fiber orientation must be determined.  There are several options for this, all of which are selected by the user at start time.  Either a preferred direction is chosen, or the sampler chooses one of the following options: random with error weights, random above a given error threshold, or entirely random.
+As the particle is traveling through voxels, the adjacent voxel from which we sample the next direction is randomly selected.  The selected direction is inversely proportional to the distance from the nearest vertex. This process is shown in Figure 4.2.  Once we know the next vertex, a fiber orientation must be determined.  There are several options for this, all of which are selected by the user at start time.  Either a preferred direction is chosen, or the sampler chooses one of the following options: random with error weights, random above a given error threshold, or entirely random.
 
 .. _pathing:
 
@@ -33,7 +33,7 @@ Methods and Architecture
 
 *oclptx* fits as a separate module in the FSL suite that depends on several existing I/O classes. The code takes identical command-line parameters from a user using *oclptx* as from one using *probtrackx*. These parameters are primarily bedpostx data, along with masks and other user-specified options.
 
-Within *oclptx*, we architect our code around three steps in the pipeline: Initialization, Tracking, and Reduction (Figure 3.4).
+Within *oclptx*, we architect our code around three steps in the pipeline: Initialization, Tracking, and Reduction (Figure 4.3).
 
 ..  _oclptx:
 
@@ -57,13 +57,15 @@ The largest dataset to allocate on the GPU is the parameter data. Parameter data
 
       OclEnv functional block diagram.
 
-After static data containers are allocated and synchronized by the *oclenv* class, the remaining GPU memory is determined in bytes, and that value is sent to *oclptxhandler*. *oclptxhandler* uses user-specified options to determine how much memory needs to be allocated per particle, and subsequently maximizes the number of particles that will fit in the remaining memory. The following containers are allocated *per particle*:
+After static data containers are allocated and synchronized by the *oclenv* class (Figure 4.4), the remaining GPU memory is determined in bytes, and that value is sent to *oclptxhandler*. *oclptxhandler* uses user-specified options to determine how much memory needs to be allocated per particle, and subsequently maximizes the number of particles that will fit in the remaining memory. The following containers are allocated *per particle*:
 
 * **State**: a struct describing the *persistent* state of a particle:  its current position, last step direction, and the state of its RNG.
 * **Global Connectivity mask**: a mask of the entire brain volume.  The particle traces its path through this space.  These values are later added to the global sum.
 * **Path**: an array for the particle to log its full path.  This is used only for debugging and is disabled in normal operation.
 * **Waypoints**: a list indicating which waypoints a particle has encountered.  This is only included if the waypoint masks is enabled.
 * **Loopcheck**: a flow field indicating both where the particle has been and what direction it was heading when it was there.  It is an option, used to determine whether we are currently retracing our steps.
+
+Figure 4.5 visualizes the static and dynamic containers used on the GPU.
 
 .. _containers:
 
@@ -135,7 +137,7 @@ At start time, we create a global first-in first-out (FIFO) queue of particles. 
 
 We start the parallelization at the device level.  For each GPU on the system, we create a *Worker* thread.  Each thread is responsible for copying data to and from a single GPU, and starting processing kernels on that GPU.  Since a single thread handles this work, no synchronization is needed here, making it easier to develop and debug.  Additionally, since *Workers* are independent, we support heterogeneous platforms. These include both low-end and high-end cards, or even cards from multiple vendors. We can support these on the same system without any additional work.
 
-After initializing, each *Worker* creates its own work pool of *Reducers*.  It then loads a batch of processed particles off of the GPU. At this point, the reducers search linearly for finished particles.  Each time a finished particle is found, the Reducer grabs a new particle off of our global FIFO of particles.  It stores these particles in a list, which is passed back to the *Worker*.  The FIFO is the only thing shared between the threads. The whole procedure is outlined in figure :ref:`threading`.
+After initializing, each *Worker* creates its own work pool of *Reducers*.  It then loads a batch of processed particles off of the GPU. At this point, the reducers search linearly for finished particles.  Each time a finished particle is found, the Reducer grabs a new particle off of our global FIFO of particles.  It stores these particles in a list, which is passed back to the *Worker*.  The FIFO is the only thing shared between the threads. The whole procedure is outlined in Figure 4.6.
 
 .. _threading:
 .. figure:: images/threading.pdf
@@ -159,7 +161,7 @@ Deterministic Comparison of *oclptx* and *probtrackx*
 
 To test the convergence of our results with expected behaviour, we modified the source code of *probtrackx* such that it does not seed randomly. Instead, we forced ptx2 to seed at a predefined location in the brain mask, and we seeded our *oclptx* at that same location in the same data set. Hence, by proving that in this deterministic scenario our interpolation algorithm produces exactly the same set of streamlines as the old code, we prove that our algorithm matches the expected results.
 
-We show these results in :ref:`deterministiccomp`. In this data set, we use 1000 seed points and generated 2000 particles, with a maximum of 2000 steps per path. These parameters give us approximately 4 million points. We then sum over these points to determine the error between the results, :math:`\chi ^ 2`, as follows:
+We show these results in Figure 4.7. In this data set, we use 1000 seed points and generated 2000 particles, with a maximum of 2000 steps per path. These parameters give us approximately 4 million points. We then sum over these points to determine the error between the results, :math:`\chi ^ 2`, as follows:
 
 :math:`\chi^2 =  \sum (r^{(1)}_i - r^{(2)}_i)^2  =  O(10^{-11}) \rightarrow  { \langle \chi^2 \rangle } \simeq {O(10^{-13})}`
 
@@ -174,7 +176,7 @@ Thus, we have a statistcally negligible error. The differences we have can be ac
 Computational Speedup of *oclptx*
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-CFRI has specified a minimum speedup requirement of 18x. This number represents an ideal total completion time for a typical data set on a high-end machine (Table :ref:`_plaform). For this testing *oclptx* was forced a reduction set range of 4000 particles and 2000 steps per stage. Seed files with varying amounts of particles were generated, and the total time spent tracking was dumped to a file. Both *oclptx* and *probtrackx* do not count initialization functions in their computation of tracking time.
+CFRI has specified a minimum speedup requirement of 18x. This number represents an ideal total completion time for a typical data set on a high-end machine (Table 4.1). For this testing, *oclptx* was forced a reduction set range of 4000 particles and 2000 steps per stage. Seed files with varying amounts of particles were generated, and the total time spent tracking was dumped to a file. Both *oclptx* and *probtrackx* do not count initialization functions in their computation of tracking time.
 
 .. _platform:
 .. table:: Benchmarking was done on a personal workstation with the following specifications.
@@ -187,9 +189,9 @@ CFRI has specified a minimum speedup requirement of 18x. This number represents 
 
 The tracking time plots show completion times as well as speedup ratios for three different types of options:
 
-* Basic probabilistic tracking, with just a brain mask and curvature threshold for termination conditions Figure (:ref:`_oclptx_bench_basic`).
-* Basic tracking, with Improved Euler interpolation Figure (:ref:`_oclpx_bench_euler`).
-* Basic tracking, with Improved Euler interpolation *and* particle loopcheck Figure (:ref:`_oclptx_bench_euler_loopcheck`).
+* Basic probabilistic tracking, with just a brain mask and curvature threshold for termination conditions (Figure 4.8).
+* Basic tracking, with Improved Euler interpolation (Figure 4.9).
+* Basic tracking, with Improved Euler interpolation *and* particle loopcheck (Figure 4.10).
 
 As the number of particles grows, the speedup ratio eventually asymptotes to some alogrithmic limit, representing the case where the effects of overhead are completely negated. It is interesting that even trivially low particle counts (1000 particles is well below the typical number used, by 2-3 orders of magnitude [Xu]_) experience a significant speedup with *oclptx*. 
 
@@ -219,9 +221,9 @@ Probabilistic Results of *oclptx*
 
 In order to determine complete validity between *oclptx* and *probtrackx*, a standard T-Test must be performed to compare the resulting global connectivity maps. In this case, we no longer remove RNG. Ideally, we would run *probtrackx* a number of times, and then obtain a mean and variance of all of the outputs. Then, we would evaluate an output from *oclptx* for the same seeds and DTI data. The sponsor has from the outset volunteered to do this testing. Therefore, the results we present in this section will not be compared to *probtrackx*
 
-With respect to random number generation, it is import to verify that the algorithm produces the desired distribution across the seed space. In this case, it is a domain of 64-bit integers. The Tausworthe/LFSR method was used to generate our random numbers. The PRNG was validated separately, with the LFSR scheme being applied to 100 different seed states 100K times each. The resulting histogram across the integer space was uniform, as seen in Figure :ref:`_prng_test`.
+With respect to random number generation, it is import to verify that the algorithm produces the desired distribution across the seed space. In this case, it is a domain of 64-bit integers. The Tausworthe/LFSR method was used to generate our random numbers. The PRNG was validated separately, with the LFSR scheme being applied to 100 different seed states 100K times each. The resulting histogram across the integer space was uniform, as seen in Figure 4.11.
 
-For a qualitative sense of probabilistic vs. deterministic tracking, we can turn off the use of RNG with a CLI flag and compare the data output. The deterministic output (Figure :ref:`_oclptx_norng`) is consistently more conforming to a particular set of paths than the probabilistic output (Figure :ref:`_oclptx_rng`).
+For a qualitative sense of probabilistic vs. deterministic tracking, we can turn off the use of RNG with a CLI flag and compare the data output. The deterministic output (Figure 4.12) is consistently more conforming to a particular set of paths than the probabilistic output (Figure 4.13).
 
 .. _prng_test:
 
@@ -244,16 +246,16 @@ For a qualitative sense of probabilistic vs. deterministic tracking, we can turn
 Reduction
 ^^^^^^^^^
 
-The threading scheme was tested independently of the interpolation kernel. Here, we used a placeholder kernel which acts like the interpolation kernel. However, instead of implementing probabilistic tractography, we implemented a well-known mathematics problem called the *Collatz Conjecture* [collatzwiki]_, since it accurately mimics asynchronous threading behaviour.  We tested both on a small-scale desktop computer with a single CPU, as well as CFRI's high-end workstation.  The runtime for 100,000 particles are depicted in Figures :ref:`collatz_stepsper` and :ref:`collatz_workpool`.  All data was verified against a reference implementation, which gives us confidence that the threading scheme is well-implemented and reliable.
+The threading scheme was tested independently of the interpolation kernel. Here, we used a placeholder kernel which acts like the interpolation kernel. However, instead of implementing probabilistic tractography, we implemented a well-known mathematics problem called the *Collatz Conjecture* [collatzwiki]_, since it accurately mimics asynchronous threading behaviour.  We tested both on a small-scale desktop computer with a single CPU, as well as CFRI's high-end workstation.  The runtime for 100,000 particles are depicted in Figures 4.14 and 4.15.  All data was verified against a reference implementation, which gives us confidence that the threading scheme is well-implemented and reliable.
 
 .. _collatz_stepsper:
 .. figure:: images/collatz_stepsper.pdf
 
   Runtime of Collatz and Reduction, varying number of steps per reduce-process cycle.  100,000 particles, 2 'Reduce' threads.
 
-The data shown in Figure :ref:`collatz_stepsper` demonstrates how performance fares when we modify the number of steps each interpolation kernel takes before reduction. The last datapoint in the figure shows a dramatic increase in runtime for the step lengths greater than :math:`10^4`. At this point, most of the threads have finished and are idling while a final few threads finish their computations. Mo Xu et al. performed a similar test scenario, and it is useful for optimizing the ideal maximum number of steps parameter in the code.
+The data shown in Figure 4.14 demonstrates how performance fares when we modify the number of steps each interpolation kernel takes before reduction. The last datapoint in the figure shows a dramatic increase in runtime for the step lengths greater than :math:`10^4`. At this point, most of the threads have finished and are idling while a final few threads finish their computations. Mo Xu et al. performed a similar test scenario, and it is useful for optimizing the ideal maximum number of steps parameter in the code.
 
-To understand resource usage on the worst-case machine, we profiled our code on the small-scale single GPU, single CPU desktop. The profiling test demonstrates where time is spent in various parts of the program's lifecycle.  These results are summarized in Table :ref:`perf_percent`.
+To understand resource usage on the worst-case machine, we profiled our code on the small-scale single GPU, single CPU desktop. The profiling test demonstrates where time is spent in various parts of the program's lifecycle.  These results are summarized in Table 4.2.
 
 
 .. _perf_percent:
@@ -269,7 +271,7 @@ To understand resource usage on the worst-case machine, we profiled our code on 
   Reduction          <0.01%
   ================== ===================
 
-Table :ref:`perf_percent` presents an interesting point of discussion. In our architecture, Interpolation and Summing are performed on the GPU. Reduction is performed on the CPU, and Write New Data/Read Status are communication between the CPU and GPU. Therefore, on our low-end machine, the program spends 94.1% of its time on the GPU kernels. Mo-Xu et al. present a different result. In their profiling, they obtained ~55% of total time spent on the GPU kernels [Xu]_. There are three reasons for this difference:
+Table 4.2 presents an interesting point of discussion. In our architecture, Interpolation and Summing are performed on the GPU. Reduction is performed on the CPU, and Write New Data/Read Status are communication between the CPU and GPU. Therefore, on our low-end machine, the program spends 94.1% of its time on the GPU kernels. Mo-Xu et al. present a different result. In their profiling, they obtained ~55% of total time spent on the GPU kernels [Xu]_. There are three reasons for this difference:
 
 #. Mo-Xu et al. were working with a simplified kernel, not requiring the summing step that our sponsor requires.
 #. Our GPU code is not as simplistic as Mo Xu's. Our project sponsor asked for focus on the additional features, such as masks, and outputing valid niftii data, once we had obtained a reasonable speedup.
