@@ -1,11 +1,11 @@
 Conclusions
 ===========
 
-We checked that our threading scheme is effective and robust across a wide range of systems, including a high-end multi-GPU, multi-CPU workstation, and a low-end, single CPU, single GPU consumer desktop.  Using a placeholder kernel, we measured error-free activity for multi-million particle runs.  This gives us confidence that our architecture is efficient and robust across diverse systems.
+We verified that our threading scheme is effective and robust across a wide range of systems: a high end multi GPU-multi CPU workstation, and a low end single CPU-single GPU consumer desktop.  Using a placeholder kernel, we measured the error-free activity for multi-million particle runs. 
 
-We verified our interpolation results against the existing *probtrackx* implementation with the random number generators removed.  We've determined that, given the same datasets, the difference between paths in the two implementations is on the order :math:`{ \langle \chi^2 \rangle } \simeq {O(10^{-13})}`, which is on the order of floating point error, and is therefore in good shape.
+We verified our interpolation results against the existing *probtrackx* implementation with the random number generators removed.  This lets us determine that, given the same datasets, the difference between paths in the two implementations is on the order :math:`{ \langle \chi^2 \rangle } \simeq {O(10^{-13})}`, which is on the order of floating point error. Statistically, we can conclude that our algorithm converges with *probtrackx*.
 
-We profiled both kernels, and determined that *oclptx* is on the order of 5 times faster for a 1000-particle dataset and 10 times faster for a 50,000-particle dataset, against the *probtrackx* implementation, as measured on a single GPU.  Performance improves linearly with number of GPUs, so the sponsor will observe a ~40 times performance improvement.  This is well beyond their expections.
+We profiled both kernels, and determined that *oclptx* is on the order of 5 times faster for a 1000-particle dataset and 10 times faster for a 50,000-particle dataset compared to *probtrackx* on a single GPU.  Performance improves linearly with number of GPUs, so the sponsor will observe a ~40 times performance improvement.  This is well beyond their exceptions.
 
 To conclude, we have successfully implemented *oclptx*, an OpenCL implementation of the Global Connectivity Estimation algorithm.
 

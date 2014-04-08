@@ -31,16 +31,9 @@ As the particle is traveling through voxels, the adjacent voxel from which we sa
 Methods and Architecture
 ------------------------
 
-*oclptx* fits as a separate module in the FSL suite (Figure 3.3). The code takes identical command-line parameters from a user using *oclptx* as from one using *probtrackx*. These parameters are primarily bedpostx data, along with masks and other user-specified options.
-
-..  _fsl:
-
-..  figure:: images/fsl.png
-
-    Simplified diagram of FSL: bedpostx results are parsed and converted for use on the GPU via a "*samplemanager*" class.
+*oclptx* fits as a separate module in the FSL suite. The code takes identical command-line parameters from a user using *oclptx* as from one using *probtrackx*. These parameters are primarily bedpostx data, along with masks and other user-specified options.
 
 Within *oclptx*, we architect our code around three steps in the pipeline: Initialization, Tracking, and Reduction (Figure 3.4).
-
 
 ..  _oclptx:
 
@@ -86,10 +79,6 @@ Tracking
 ^^^^^^^^
 
 When a batch of particles is sent to the GPU(s) for tracking, two distinct kernels operate on that batch: **interpolation** and **summing**. Every operation in the interpolation GPU kernel mirrors functionality from the Streamline::Streamlines method in *probtrackx*. The interpolation kernel's work range is simply the space of queued particles. To reduce the need for atomic operations, the summing kernel's work range is actually the global voxel space separated into 32 voxel regions. Each summing thread obtains data from all valid particles, and performs summing on its particular section.
-
-  .. _interpolation_flow:
-
-      Basic overview of tracking algorithm kernel. TODO Steve: Add
 
 Any optional tracking steps in the kernels are not compiled if they are unused. This is to reduce any penalties from repeatedly calling conditional statements in the kernel, which decrease performance as the particle count increases.
 
@@ -147,8 +136,6 @@ At start time, we create a global first-in first-out (FIFO) queue of particles. 
 We start the parallelization at the device level.  For each GPU on the system, we create a *Worker* thread.  Each thread is responsible for copying data to and from a single GPU, and starting processing kernels on that GPU.  Since a single thread handles this work, no synchronization is needed here, making it easier to develop and debug.  Additionally, since *Workers* are independent, we support heterogeneous platforms. These include both low-end and high-end cards, or even cards from multiple vendors. We can support these on the same system without any additional work.
 
 After initializing, each *Worker* creates its own work pool of *Reducers*.  It then loads a batch of processed particles off of the GPU. At this point, the reducers search linearly for finished particles.  Each time a finished particle is found, the Reducer grabs a new particle off of our global FIFO of particles.  It stores these particles in a list, which is passed back to the *Worker*.  The FIFO is the only thing shared between the threads. The whole procedure is outlined in figure :ref:`threading`.
-
-TODO Jeff: Conceptual diagram from first presentations
 
 .. _threading:
 .. figure:: images/threading.pdf
